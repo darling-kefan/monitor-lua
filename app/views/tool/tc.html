@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Redis tc缓存查看 - TVM广告同步监测系统</title>
+
+<link href="{*base_url*}static/css/bootstrap.min.css" rel="stylesheet">
+<link href="{*base_url*}static/css/bootstrap-theme.min.css" rel="stylesheet">
+<link href="{*base_url*}static/css/publish.css" rel="stylesheet">
+
+<!--[if lt IE 9]>
+<script src="{*base_url*}static/js/html5shiv.min.js"></script>
+<script src="{*base_url*}static/js/respond.min.js"></script>
+<![endif]-->
+
+<script src="{*base_url*}static/js/jquery.min.js"></script>
+<script src="{*base_url*}static/js/bootstrap.min.js"></script>
+<script src="{*base_url*}static/js/popover.js"></script>
+<script src="{*base_url*}static/js/ZeroClipboard.min.js"></script>
+<script src="{*base_url*}static/js/modules/ztc.js"></script>
+<script src="{*base_url*}static/js/modules/ka.js"></script>
+<script src="{*base_url*}static/js/modules/tool.js?v=21"></script>
+</head>
+<body>
+<div class="container-fluid">
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <form class="form-horizontal" method="get" action="">
+        <div class="form-group">
+          <label class="col-md-1 control-label">搜索方式</label>
+          <div class="col-md-11">
+          <label class="radio-inline">
+            <input type="radio" name="search_type" id="inlineRadio1" value="1" {% if args.search_type == nil or args.search_type == '1' then %}checked{% end %}> 条件筛选
+          </label>
+          <label class="radio-inline">
+            <input type="radio" name="search_type" id="inlineRadio2" value="2" {% if args.search_type == '2' then%}checked{% end %}> 手动输入
+          </label>
+          </div>
+        </div>
+        <div class="form-group search_type_1"{% if args.search_type ~= nil and args.search_type ~= '1' then %} style="display:none"{% end %}>
+          <label class="col-md-1 control-label">客户端</label>
+          <div class="col-md-3">
+          <select class="form-control" name="agent">
+            <option value="1" {% if args.agent == '1' then %}selected="selected"{% end %}>微信</option>
+            <option value="2" {% if args.agent == '2' then %}selected="selected"{% end %}>APP</option>
+            <option value="3" {% if args.agent == '3' then %}selected="selected"{% end %}>支付宝</option>
+			<option value="6" {% if args.agent == '6' then %}selected="selected"{% end %}>Adview-曝光</option>
+			<option value="7" {% if args.agent == '7' then %}selected="selected"{% end %}>Adview-点击</option>
+          </select>
+          </div>
+          <label class="col-md-1 control-label">时间</label>
+          <div class="col-md-3">
+            <select name="time" class="form-control">
+              <option value="{{now:fmt('%Y-%m-%d %H:00:00')}}" {% if args.time == now:fmt('%Y-%m-%d %H:00:00') then %}selected="selected"{% end %}>{{now:fmt("%Y-%m-%d")}} {{now:fmt("%H")}}:00:00 ~ {{now:fmt("%H")}}:59:59</option>
+              {% local d = now:addhours(1) %}
+              <option value="{{d:fmt('%Y-%m-%d %H:00:00')}}" {% if args.time == d:fmt('%Y-%m-%d %H:00:00') then %}selected="selected"{% end %}>{{d:fmt("%Y-%m-%d")}} {{d:fmt("%H")}}:00:00 ~ {{d:fmt("%H")}}:59:59</option>
+            </select>
+          </div>
+          <label class="col-md-1 control-label">性别</label>
+          <div class="col-md-3">
+          <select class="form-control" name="sex">
+            <option value="0" {% if args.sex == '0' then %}selected="selected"{% end %}>不限</option>
+            <option value="1" {% if args.sex == '1' then %}selected="selected"{% end %}>男性</option>
+            <option value="2" {% if args.sex == '2' then %}selected="selected"{% end %}>女性</option>
+          </select>
+          </div>
+        </div>
+        <div class="form-group search_type_1"{% if args.search_type ~= nil and args.search_type ~= '1' then%} style="display:none"{% end %}>
+          <label class="col-md-1 control-label">操作系统</label>
+          <div class="col-md-3">
+          <select class="form-control" name="os">
+            <option value="0" {% if args.os == '0' then %}selected="selected"{% end %}>不限</option>
+            <option value="6" {% if args.os == '6' then %}selected="selected"{% end %}>ios</option>
+            <option value="7" {% if args.os == '7' then %}selected="selected"{% end %}>Andriod</option>
+          </select>
+          </div>
+          <label class="col-md-1 control-label">地区</label>
+          <div class="col-md-3">
+          <select name="district1" class="form-control" onchange="Ztc.Adserving.District.fill(this.options[this.options.selectedIndex].value, 1);">
+            <option value="">一级地区</option>
+            {% if args.district1 ~= nil then %}
+            {% for _, t in pairs(districts) do %}
+            {% if tonumber(t.leveltype) == 1 then %}
+            {% if tonumber(args.district1) == tonumber(t.id) then %}
+            <option value="{{t.id}}" selected="selected">{{t.name}}</option>
+            {% else %}
+            <option value="{{t.id}}">{{t.name}}</option>
+            {% end %}
+            {% end %}
+            {% end %}
+            {% end %}
+          </select>
+          </div>
+          <div class="col-md-3">
+          <select name="district2" class="form-control">
+            <option value="">二级地区</option>
+            {%
+            if args.district1 ~= nill and args.district2 ~= nil then
+              local pid = 0
+              for _, t in pairs(districts) do
+                if tonumber(t.id) == tonumber(args.district1) then
+                  pid = t.did
+                end
+              end
+
+              for _, t in pairs(districts) do
+                if tonumber(t.leveltype) == 2 and tonumber(t.pid) == tonumber(pid) then
+                  if tonumber(args.district2) == tonumber(t.id) then
+            %}
+            <option value="{{t.id}}" selected="selected">{{t.name}}</option>
+                  {% else %}
+            <option value="{{t.id}}">{{t.name}}</option>
+            {%
+                  end
+                end
+              end
+            end
+            %}
+          </select>
+          </div>
+        </div>
+        <div class="form-group search_type_2" {% if args.search_type == nil or args.search_type ~= '2' then%} style="display:none"{% end %}>
+          <label class="col-md-1 control-label">Redis Key</label>
+          <div class="col-md-3">
+          <input class="form-control" name="keyword" type="text" value="{{args.keyword}}" placeholder="tc:1:12000300" />
+          </div>
+          <div class="col-md-8"><!-- <p class="form-control-static" style="color:red;">(手动输入tc Key，输入后将忽略其它筛选条件)</p> --></div>
+        </div>
+        <div class="form-group">
+          <label class="col-md-1 control-label"> </label>
+          <div class="col-md-1">
+            <div class="input-group">
+              <span class="input-group-btn"><button type="submit" class="btn btn-primary"><i class="glyphicon glyphicon-search"></i>&nbsp;&nbsp;确&nbsp;&nbsp;定</button></span>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="panel-body" style="padding-bottom:0">
+      <pre style="color:#CD0001; background-color:#FFEAE9; font-size:16px;"># zrevrange {{tc_key}} 0 -1</pre>
+    </div>
+    <div class="panel-body" style="padding-top:5px; padding-bottom:0">
+      <pre style="color:#CD0001; background-color:#FFEAE9; white-space:pre-wrap; word-wrap:break-word; font-size:14px;">提示：红色-置顶广告；橙色-正式广告；蓝色-点击到达广告；鲜绿-试投广告；绿色-测试广告；<!-- 淡紫色背景-频道自投广告 --></pre>
+    </div>
+    <div class="panel-body" style="padding-top:5px">
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover" style="margin-bottom: 0px;">
+          <tr style="background-color:#f5f5f5">
+            <th class="text-center">序号</th>
+            <th class="text-center">广告ID</th>
+            <th class="text-center">广告主ID</th>
+            <th class="text-center">创意ID</th>
+            <th class="text-center">标题</th>
+            <th class="text-center">广告图片</th>
+            <th class="text-center">广告位</th>
+			<th class="text-center">计费类型</th>
+            <th class="text-center">定向数据</th>
+			<th class="text-center">出价(分)</th>
+            <th class="text-center">预算(元)</th>
+            <th class="text-center">已消费(元)</th>
+            <th class="text-center">撞线率</th>
+          </tr>
+          {% for k, p in pairs(publishs) do %}
+          <tr{%if p.isChannelOwn then%} style="background-color: #f2dede"{%end%}>
+            <td class="text-center" style="vertical-align: middle; background-color: {% if p.s_pcat == 5 then %}#FF7A64{% elseif p.s_pcat == 4 then %}#FF9229{% elseif p.s_pcat == 3 then %}#28C505{% elseif p.s_pcat == 2 then %}#6290F6{% else %}#67CD7D{% end %}">{{k}}</td>
+            <td class="text-center" style="vertical-align: middle;">{{p.publish_id}}</td>
+            <td class="text-center" style="vertical-align: middle;">{{p.shortcom}}({{p.advertiser_id}})</td>
+            <td class="text-center" style="vertical-align: middle;">{{p.card_id}}</td>
+            <td class="text-center" style="vertical-align: middle;">{{p.title}}</td>
+            <td class="text-center">{% if p.card_logo ~= '' then%}<a href="{{p.card_url}}" target="_blank"><img width="100" height="50" src="{{p.card_logo}}" /></a>{% else %}<img width="100" height="50" src="{{p.card_logo}}" />{% end %}</td>
+            <td class="text-center" style="vertical-align: middle;">{{p.card_type}}</td>
+			<td class="text-center" style="vertical-align: middle;">{{p.billing_name}}</td>
+            <td class="text-center" style="vertical-align: middle;">{%if not p.target_data.sex and not p.target_data.os and not p.target_data.ages and not p.target_data.districts and not p.target_data.interests then%}-{%else%}{{not p.target_data.sex and '' or p.target_data.sex .. ';'}}{{not p.target_data.os and '' or p.target_data.os .. ';'}}{%if p.target_data.districts then%}{{p.target_data.districts[1]}}{%if #p.target_data.districts > 1 then%}[<a href="javascript:void(0)" tabindex="0" data-toggle="popover" data-trigger="focus" title="地区" data-content="{{table.concat(p.target_data.districts, ',')}}">更多</a>]{%end%};{%end%}{%if p.target_data.ages then%}[<a href="javascript:void(0)" tabindex="0" data-toggle="popover" data-trigger="focus" title="年龄段" data-content="{{table.concat(p.target_data.ages, ',')}}">年龄段</a>]{%end%}{%if p.target_data.interests then%}[<a href="javascript:void(0)" tabindex="0" data-toggle="popover" data-trigger="focus" title="兴趣" data-content="{{table.concat(p.target_data.interests, ',')}}">兴趣</a>]{%end%}{%end%}</td>
+            <td class="text-center" style="vertical-align: middle;">{% if args.agent == '6' or args.agent == '7' then %}{{p.s_bid_adview/100}}{% else %}{{p.s_bid}}{% end %}({{p.bid}})</td>
+            <td class="text-center" style="vertical-align: middle;">{{p.budget.ceiling}}</td>
+            <td class="text-center" style="vertical-align: middle;">{{p.budget.consume}}</td>
+            <td class="text-center" style="vertical-align: middle;{%if tonumber(p.budget.lineRate) and tonumber(p.budget.lineRate) >= 95 then%} font-weight: bold; color:#BE0000{%end%}">{{p.budget.lineRate}}{%if tonumber(p.budget.lineRate) then%}%{%end%}</td>
+          </tr>
+          {% end %}
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<script type="text/javascript">
+$('input[type=radio][name=search_type]').change(function() {
+  if (this.value == 1) {
+    $('div.search_type_1').show();
+    $('div.search_type_2').hide();
+  } else if (this.value == 2) {
+    $('div.search_type_1').hide();
+    $('div.search_type_2').show();
+  }
+});
+
+// 是否可投放弹出框
+$('[data-toggle="popover"]').popover();
+
+var districts = [];
+{% for _, t in pairs(districts) do %}
+  districts.unshift({'districtId':'{{t.id}}', 'name':'{{t.name}}', 'did':'{{t.did}}', 'pid':'{{t.pid}}', 'level':'{{t.leveltype}}'});
+{% end %}
+{% if args.district1 == nil then %}
+Ztc.Adserving.District.fill(0, 0);
+{% end %}
+</script>
+</body>
+</html>

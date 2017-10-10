@@ -1,0 +1,39 @@
+.loading-spinner {
+    display: block;
+    margin: 0 auto;
+    width:20px;
+    height:20px;
+    background: rgba( 255, 255, 255, .8 ) 
+                url('../images/spinner.gif') 
+                50% 50% 
+                no-repeat;
+}
+
+.pagination {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.highlight pre code:first-child {
+    display: inline-block;
+    padding-right: 45px;
+}
+
+.highlight pre code {
+    font-size: inherit;
+    color: #333;
+}
+
+pre code {
+    padding: 0;
+    font-size: inherit;
+    color: inherit;
+    white-space: pre-wrap;
+    background-color: transparent;
+    border-radius: 0;
+    font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
+}
+
+.highlight pre {
+    word-break: normal;
+}

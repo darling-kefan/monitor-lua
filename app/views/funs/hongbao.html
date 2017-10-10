@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>任务红包</title>
+
+<link href="{*base_url*}static/css/bootstrap.min.css" rel="stylesheet">
+<link href="{*base_url*}static/css/bootstrap-theme.min.css" rel="stylesheet">
+<link href="{*base_url*}static/css/publish.css" rel="stylesheet">
+
+<!--[if lt IE 9]>
+<script src="{*base_url*}static/js/html5shiv.min.js"></script>
+<script src="{*base_url*}static/js/respond.min.js"></script>
+<![endif]-->
+
+<script src="{*base_url*}static/js/jquery.min.js"></script>
+<script src="{*base_url*}static/js/bootstrap.min.js"></script>
+<script src="{*base_url*}static/js/popover.js"></script>
+<script src="{*base_url*}static/js/ZeroClipboard.min.js"></script>
+<script src="{*base_url*}static/js/modules/ztc.js"></script>
+</head>
+<body>
+<div class="container-fluid">
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <form class="navbar-form navbar-top text-right" role="search" method="get" action="" style="padding:0">
+        <div class="form-group">
+          <select name="status" class="form-control">
+            <option value="" {% if args.status == nil or args.status == "" then %}selected="selected"{% end %}>红包状态-全部</option>
+            <option value="1" {% if tonumber(args.status) == 1 then %}selected="selected"{% end %}>成功</option>
+            <option value="0" {% if tonumber(args.status) == 0 then %}selected="selected"{% end %}>失败</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <select name="date" class="form-control">
+			<option value="" {% if args.date == "" then %}selected="selected"{% end %}>选择日期</option>
+            {% local d = now:adddays(-6) %}
+            <option value="{{now:fmt('%Y-%m-%d')}}" {% if args.date == now:fmt('%Y-%m-%d') then %}selected="selected"{% end %}>{{now:fmt("%Y-%m-%d")}}</option>
+            {% for i=0, 5, 1 do %}
+            {% local d = now:adddays(1) %}
+            <option value="{{d:fmt('%Y-%m-%d')}}" {% if args.date == d:fmt('%Y-%m-%d') then %}selected="selected"{% end %}>{{d:fmt("%Y-%m-%d")}}</option>
+            {% end %}
+          </select>
+        </div>
+        <div class="form-group">
+          <input name="keyword" type="text" class="form-control" placeholder="tvmid/任务id" value="{{args.keyword}}">
+        </div>
+        <input type="hidden" name="orderProperty" value="{{args.orderProperty}}" />
+        <input type="hidden" name="orderDirection" value="{{args.orderDirection}}" />
+		<input type="hidden" name="pageNumber" value="{{args.pageNumber}}">
+		<a class="button btn btn-primary" href="javascript:void(0);" id="submit">搜&nbsp;&nbsp;索</a>
+      </form>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover" style="margin-bottom: 0px;">
+        <tr style="background-color:#E6E2EB;">
+          <th class="text-center" style="border-right:1px solid #ddd">序号</th>
+          <th class="text-center dropdown" data-order-property order-property="tvmid" style="border-right:1px solid #ddd; cursor:pointer">tvmid{%if args.orderProperty == 'tvmid' then%} <span class="caret"></span>{%end%}</th>
+          <th class="text-center" data-order-property order-property="taskid" style="border-right:1px solid #ddd; cursor:pointer">任务id {%if args.orderProperty == 'taskid' then%} <span class="caret"></span>{%end%}</th>
+          <th class="text-center dropup" data-order-property order-property="money" style="border-right:1px solid #ddd; cursor:pointer">金额(元) {%if args.orderProperty == 'money' then%} <span class="caret"></span>{%end%}</th>
+          <th class="text-center" data-order-property order-property="hongbao_status" style="border-right:1px solid #ddd; cursor:pointer">红包状态 {%if args.orderProperty == 'hongbao_status' then%} <span class="caret"></span>{%end%}</th>
+          <th class="text-center" data-order-property order-property="created_at" style="border-right:1px solid #ddd; cursor:pointer">创建时间 {%if args.orderProperty == 'created_at' then%} <span class="caret"></span>{%end%}</th>
+        </tr>
+        {% for k, hb in pairs(hongbaos) do %}
+        <tr {%if tonumber(hb.hongbao_status) == 0 then%} style="background-color: #FCF8E3"{%else%} style="background-color: #fff"{%end%}>
+          <td class="text-center">{{k}}</td>
+		  <td class="text-center">{{hb.tvmid}}</td>
+		  <td class="text-center">{{hb.taskid}}</td>
+          <td class="text-center">{{string.format("%.2f", hb.amount)}}</td>
+          <td class="text-center">{{hb.hb_status}}</td>
+          <td class="text-center">{{hb.created_at}}</td>
+        </tr>
+        {% end %}
+      </table>
+    </div>
+
+	
+	
+	<div class="panel-body text-right" style="padding-top:0px;padding-bottom:0px">
+	  <nav aria-label="...">
+		<ul class="pager">
+		  <li class="previous{%if args.pageNumber == nil or args.pageNumber == "" or tonumber(args.pageNumber) == 1 then%} disabled{%end%}" data-page-number page-number={%if tonumber(args.pageNumber) == 1 then%}1{%else%}{{args.pageNumber-1}}{%end%}><a href="javascript:void(0);"><span aria-hidden="true">&larr;</span> 上一页</a></li>
+		  <li class="next{%if tonumber(args.pageNumber) == tonumber(pageCount) then%} disabled{%end%}" data-page-number page-number={%if tonumber(args.pageNumber) == tonumber(pageCount) then%}{{pageCount}}{%else%}{{args.pageNumber+1}}{%end%}><a href="javascript:void(0);">下一页 <span aria-hidden="true">&rarr;</span></a></li>
+		</ul>
+	  </nav>
+	</div>
+
+	<div class="panel-footer text-right">
+	  总条数：{{hongbaoCount}}，总页数：{{pageCount}}
+    </div>
+  </div>
+</div>
+<script type="text/javascript">
+// 是否可投放弹出框
+$('[data-toggle="popover"]').popover();
+
+$().ready(function() {
+	var $form = $("form");
+	var $pageNumber = $("input[name='pageNumber']");
+	var $pageNumberItem = $("[data-page-number]");
+	var $orderProperty = $("input[name='orderProperty']");
+	var $orderDirection = $("input[name='orderDirection']");
+	
+	$("[order-property='" + $orderProperty.val() + "']").removeClass("dropup").removeClass("dropdown").addClass($orderDirection.val() == "asc" ? "dropup" : "dropdown");
+
+	$("#submit").click(function() {
+		$pageNumber.val(1);
+		$form.submit();
+		return false;
+	});
+	
+	$("[data-order-property]").click(function() {
+		var $element = $(this);
+		$pageNumber.val(1);
+		$orderProperty.val($element.attr("order-property"));
+		$orderDirection.val($orderDirection.val() == "asc" ? "desc" : "asc");
+		$form.submit();
+		return false;
+	});
+
+	$pageNumberItem.click(function() {
+		var $element = $(this);
+		if (!$element.hasClass("disabled")) {
+			$pageNumber.val($element.attr("page-number"));
+			$form.submit();
+		}
+		return false;
+	});
+});
+</script>
+</body>
+</html>

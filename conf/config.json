@@ -1,0 +1,26 @@
+{
+	"etvm_host": "10.10.72.64",
+	"etvm_port": 3306,
+	"etvm_database": "etvm",
+	"etvm_user": "root",
+	"etvm_password": "tvmining@123",
+
+	"ejob_host": "10.10.72.64",
+	"ejob_port": 3306,
+	"ejob_database": "ejob",
+	"ejob_user": "root",
+	"ejob_password": "tvmining@123",
+
+	"app_funs_host": "127.0.0.1",
+	"app_funs_port": 3306,
+	"app_funs_database": "app_funs",
+	"app_funs_user": "root",
+	"app_funs_password": "123456",
+
+	"redis_host_read": "10.10.51.14",
+	"redis_port_read": 6311,
+	"redis_host_write": "10.10.51.14",
+	"redis_port_write": 6311,
+
+	"base_url": "/"
+}
